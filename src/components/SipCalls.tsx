@@ -19,13 +19,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import api from "@/services/api";
-import { ArrowLeftRight, ArrowRightLeft, Loader } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ArrowRightLeft,
+  ChartSpline,
+  Info,
+  Loader,
+  Sparkles,
+} from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from "./ui/context-menu";
+import { Separator } from "./ui/separator";
+import { CallFlow } from "./CallFlow";
 
 // Interfaces
 interface Call {
@@ -100,6 +109,8 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [hasMorePages, setHasMorePages] = useState(false);
+  const [callFlowModal, setCallFlowModal] = useState(false);
+  const [callFlowSid, setCallFlowSid] = useState<string>("");
   const filterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [filters, setFilters] = useState<CallsFilter>({
@@ -229,6 +240,11 @@ export const SipCalls: React.FC<SipCallsProps> = ({
     }
   };
 
+  const handleOpenCallFlow = (sid: string) => {
+    setCallFlowSid(sid);
+    setCallFlowModal(true);
+  };
+
   useEffect(() => {
     if (!start_date || !end_date) return;
     console.log(start_date, end_date);
@@ -244,7 +260,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   }, [filters]);
 
   return (
-    <div className="w-full">
+    <div className="w-full selection:bg-primary selection:text-primary-foreground">
       {/* Filters */}
       {showFilter && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -286,7 +302,9 @@ export const SipCalls: React.FC<SipCallsProps> = ({
                   />
                 </TableHead>
                 {columns.map((column) => (
-                  <TableHead key={column.key}>{column.label}</TableHead>
+                  <TableHead className="cursor-default" key={column.key}>
+                    {column.label}
+                  </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -334,6 +352,25 @@ export const SipCalls: React.FC<SipCallsProps> = ({
                         }}
                         className="flex justify-between"
                       >
+                        Call Details
+                        <Info />
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => {
+                          alert(JSON.stringify(call));
+                        }}
+                        className="flex justify-between"
+                      >
+                        Voice Quality Info
+                        <ChartSpline />
+                      </ContextMenuItem>
+                      <Separator className="my-1" />
+                      <ContextMenuItem
+                        onClick={() => {
+                          handleOpenCallFlow(call.sid);
+                        }}
+                        className="flex justify-between"
+                      >
                         Call Flow
                         <ArrowLeftRight />
                       </ContextMenuItem>
@@ -342,9 +379,20 @@ export const SipCalls: React.FC<SipCallsProps> = ({
                           alert(JSON.stringify(selectedCalls));
                         }}
                         className="flex justify-between"
+                        disabled={selectedCalls.length < 2}
                       >
                         Selected Calls Flow
                         <ArrowRightLeft />
+                      </ContextMenuItem>
+                      <Separator className="my-1" />
+                      <ContextMenuItem
+                        onClick={() => {
+                          alert(JSON.stringify(selectedCalls));
+                        }}
+                        className="flex justify-between"
+                      >
+                        Ask AI
+                        <Sparkles />
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>
@@ -411,6 +459,12 @@ export const SipCalls: React.FC<SipCallsProps> = ({
           </div>
         </div>
       )}
+
+      <CallFlow
+        open={callFlowModal}
+        onOpenChange={setCallFlowModal}
+        sid={callFlowSid}
+      />
     </div>
   );
 };

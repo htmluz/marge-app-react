@@ -47,7 +47,11 @@ const items = [
 
 export function AppSidebar() {
   return (
-    <Sidebar collapsible="icon" variant="sidebar">
+    <Sidebar
+      collapsible="icon"
+      variant="sidebar"
+      className="selection:bg-primary selection:text-primary-foreground"
+    >
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Marge</SidebarGroupLabel>
