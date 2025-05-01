@@ -12,12 +12,17 @@ export default function Layout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="w-full h-full">
+      <main className="w-full h-full selection:bg-primary selection:text-primary-foreground">
         <div
           id="topbar"
           className="sticky top-0 z-50 backdrop-blur-sm flex justify-between mx-[8px] border-b mb-[16px] py-[4px]"
         >
-          <SidebarTrigger />
+          <div className="flex">
+            <div className="mr-2 border-r pr-2">
+              <SidebarTrigger />
+            </div>
+            <div className="mt-1"></div>
+          </div>
           <div className="flex">
             <div className="border-r mr-2 pr-2 ">
               <TimestampSelect />

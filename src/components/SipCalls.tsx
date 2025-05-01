@@ -35,6 +35,7 @@ import {
 } from "./ui/context-menu";
 import { Separator } from "./ui/separator";
 import { CallFlow } from "./CallFlow";
+import { VoiceDetail } from "./RtcpDetails";
 
 // Interfaces
 interface Call {
@@ -110,6 +111,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   const [pageSize, setPageSize] = useState(25);
   const [hasMorePages, setHasMorePages] = useState(false);
   const [callFlowModal, setCallFlowModal] = useState(false);
+  const [voiceDetailModal, setVoiceDetailModal] = useState(false);
   const [callFlowSid, setCallFlowSid] = useState<string>("");
   const filterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -245,6 +247,11 @@ export const SipCalls: React.FC<SipCallsProps> = ({
     setCallFlowModal(true);
   };
 
+  const handleOpenVoiceDetails = (sid: string) => {
+    setCallFlowSid(sid);
+    setVoiceDetailModal(true);
+  };
+
   useEffect(() => {
     if (!start_date || !end_date) return;
     console.log(start_date, end_date);
@@ -357,7 +364,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
                       </ContextMenuItem>
                       <ContextMenuItem
                         onClick={() => {
-                          alert(JSON.stringify(call));
+                          handleOpenVoiceDetails(call.sid);
                         }}
                         className="flex justify-between"
                       >
@@ -463,6 +470,12 @@ export const SipCalls: React.FC<SipCallsProps> = ({
       <CallFlow
         open={callFlowModal}
         onOpenChange={setCallFlowModal}
+        sid={callFlowSid}
+      />
+
+      <VoiceDetail
+        open={voiceDetailModal}
+        onOpenChange={setVoiceDetailModal}
         sid={callFlowSid}
       />
     </div>
