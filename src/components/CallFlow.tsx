@@ -196,7 +196,7 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
                               {colIdx === srcIdx && (
                                 <div className="relative">
                                   <div
-                                    className="absolute z-10 mt-5 h-[2px] bg-primary"
+                                    className="absolute z-10 mt-5 h-[2px] bg-foreground"
                                     style={{
                                       left: "51.5%",
                                       width: `${lineWidth}%`,
@@ -211,7 +211,7 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
                                     </span>
                                     {colIdx !== dstIdx && (
                                       <div
-                                        className="absolute w-0 h-0 text-primary"
+                                        className="absolute w-0 h-0 text-foreground"
                                         style={{
                                           top: "-4px",
                                           [srcIdx < dstIdx ? "right" : "left"]:
@@ -250,13 +250,13 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
                                     >
                                       <path
                                         d="M 30 5 L -40 5 L -40 35 L 26 35"
-                                        stroke="var(--primary)"
+                                        stroke="var(--foreground)"
                                         strokeWidth="3"
                                         fill="none"
                                       />
                                       <polygon
                                         points="32,35 24,30 24,40"
-                                        fill="var(--primary)"
+                                        fill="var(--foreground)"
                                       />
                                     </g>
                                   </svg>

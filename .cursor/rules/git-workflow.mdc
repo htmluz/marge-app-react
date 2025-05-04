@@ -1,0 +1,57 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Git Workflow Guidelines
+
+## Branch Naming
+- `feature/` - For new features
+- `bugfix/` - For bug fixes
+- `hotfix/` - For urgent production fixes
+- `refactor/` - For code refactoring
+- `chore/` - For maintenance tasks
+
+Example: `feature/user-authentication`
+
+## Commit Messages
+Follow the Conventional Commits specification:
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+Types:
+- `feat`: New feature
+- `fix`: Bug fix
+- `refactor`: Code change that neither fixes a bug nor adds a feature
+- `style`: Changes that don't affect code meaning
+- `test`: Adding missing tests or correcting existing tests
+- `docs`: Documentation only changes
+- `chore`: Changes to the build process or auxiliary tools
+
+## Pull Requests
+- Create a descriptive title following commit convention
+- Fill out the PR template completely
+- Link related issues
+- Add appropriate labels
+- Request reviews from team members
+- Ensure CI checks pass
+- Keep changes focused and atomic
+
+## Code Review Guidelines
+- Review PRs within 24 hours
+- Provide constructive feedback
+- Use suggestions for specific code changes
+- Approve only when all comments are resolved
+- Ensure tests are included and passing
+
+## Main Branch Protection
+- Require pull request reviews
+- Require status checks to pass
+- No direct commits to main
+- Keep main branch always deployable
+

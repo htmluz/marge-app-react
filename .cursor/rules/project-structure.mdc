@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Structure Overview
+
+This is a React + TypeScript application using Vite as the build tool. The main entry points and important files are:
+
+- [main.tsx](mdc:src/main.tsx) - Application entry point
+- [App.tsx](mdc:src/App.tsx) - Root component
+- [routes.tsx](mdc:src/routes.tsx) - Application routing configuration
+
+Key directories:
+- `src/components/` - Reusable UI components
+- `src/views/` - Page components
+- `src/contexts/` - React context providers
+- `src/hooks/` - Custom React hooks
+- `src/services/` - API and external service integrations
+- `src/lib/` - Utility functions and shared logic
+- `src/types/` - TypeScript type definitions
+- `src/assets/` - Static assets like images and icons
+
+Configuration files:
+- [vite.config.ts](mdc:vite.config.ts) - Vite build configuration
+- [tsconfig.json](mdc:tsconfig.json) - TypeScript configuration
+- [components.json](mdc:components.json) - UI components configuration
+

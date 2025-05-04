@@ -1,0 +1,51 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Testing Guidelines
+
+## Test File Structure
+- Test files should be co-located with the code they test
+- Use `.test.tsx` or `.test.ts` extension for test files
+- Follow the pattern: `ComponentName.test.tsx`
+
+## Testing Frameworks
+- Use Vitest as the test runner
+- Use React Testing Library for component testing
+- Use MSW for mocking API requests
+
+## Test Organization
+```typescript
+describe('ComponentName', () => {
+  describe('behavior/feature', () => {
+    it('should do something specific', () => {
+      // Test implementation
+    });
+  });
+});
+```
+
+## Best Practices
+- Test component behavior, not implementation details
+- Use meaningful test descriptions
+- Follow the Arrange-Act-Assert pattern
+- Mock external dependencies appropriately
+- Test error cases and edge conditions
+- Keep tests focused and isolated
+
+## Coverage Requirements
+- Maintain minimum 80% test coverage
+- All new features must include tests
+- Critical business logic should have 100% coverage
+
+## Integration Tests
+- Write integration tests for complex user flows
+- Test component interactions
+- Verify API integration points
+
+## E2E Testing
+- Use Playwright for end-to-end testing
+- Focus on critical user journeys
+- Run E2E tests in CI/CD pipeline
+

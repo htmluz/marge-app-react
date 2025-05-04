@@ -1,0 +1,45 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Coding Conventions
+
+## Component Structure
+- React components should be created in the `src/components` directory
+- Each component should have its own directory with the following structure:
+  ```
+  ComponentName/
+  ├── index.tsx      # Component implementation
+  ├── styles.css     # Component styles (if needed)
+  └── types.ts       # Component type definitions (if needed)
+  ```
+
+## Naming Conventions
+- Use PascalCase for component names: `UserProfile`, `TodoList`
+- Use camelCase for variables, functions, and instances
+- Use UPPER_SNAKE_CASE for constants
+- Use `.tsx` extension for files containing JSX
+- Use `.ts` extension for plain TypeScript files
+
+## TypeScript Usage
+- Always define prop types for components
+- Use interfaces over types for object definitions
+- Enable strict mode in TypeScript configuration
+- Use explicit return types for functions
+
+## State Management
+- Use React Context for global state
+- Prefer hooks for component-level state management
+- Keep state as close to where it's used as possible
+
+## Styling
+- Use CSS modules for component-specific styles
+- Follow BEM naming convention for CSS classes
+- Use CSS variables for theming and reusable values
+
+## Error Handling
+- Use try/catch blocks for async operations
+- Implement error boundaries for component error handling
+- Log errors appropriately using the logger utility
+
