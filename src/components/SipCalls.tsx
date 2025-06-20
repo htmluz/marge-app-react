@@ -178,7 +178,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   }
 
   const loadCalls = async () => {
-    if (!filters.start_date || !filters.end_date) return;
+    if (!inputFilters.start_date || !inputFilters.end_date) return;
     setLoading(true);
     try {
       const apiFilters = { ...filters };
@@ -213,20 +213,26 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   const handleFilterChange = (key: string, value: string) => {
     setInputFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
     setCurrentPage(1);
+  };
 
+  useEffect(() => {
     if (filterTimeoutRef.current) {
       clearTimeout(filterTimeoutRef.current);
     }
-
     filterTimeoutRef.current = setTimeout(() => {
       setFilters((prev) => ({
         ...prev,
         ...inputFilters,
-        [key]: value,
         page: 1,
       }));
     }, 500);
-  };
+
+    return () => {
+      if (filterTimeoutRef.current) {
+        clearTimeout(filterTimeoutRef.current);
+      }
+    };
+  }, [inputFilters]);
 
   const isSelected = (call: Call) => {
     return selectedCalls.some((selected) => selected.sid === call.sid);
@@ -254,7 +260,6 @@ export const SipCalls: React.FC<SipCallsProps> = ({
 
   useEffect(() => {
     if (!start_date || !end_date) return;
-    console.log(start_date, end_date);
     setFilters((prev) => ({
       ...prev,
       start_date,
@@ -284,6 +289,9 @@ export const SipCalls: React.FC<SipCallsProps> = ({
               />
             </div>
           ))}
+          <label className="text-xs italic text-muted-foreground">
+            Utilize * como um wildcard
+          </label>
         </div>
       )}
 
@@ -390,16 +398,6 @@ export const SipCalls: React.FC<SipCallsProps> = ({
                       >
                         Selected Calls Flow
                         <ArrowRightLeft />
-                      </ContextMenuItem>
-                      <Separator className="my-1" />
-                      <ContextMenuItem
-                        onClick={() => {
-                          alert(JSON.stringify(selectedCalls));
-                        }}
-                        className="flex justify-between"
-                      >
-                        Ask AI
-                        <Sparkles />
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>

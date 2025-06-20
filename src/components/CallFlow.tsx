@@ -304,9 +304,6 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
               Export
               <ChevronUp />{" "}
             </Button>
-            <Button variant="outline">
-              Ask AI <Sparkles />{" "}
-            </Button>
           </div>
         </DialogFooter>
       </DialogContent>
