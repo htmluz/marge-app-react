@@ -12,14 +12,22 @@ import { ChevronUp, Sparkles } from "lucide-react";
 import React from "react";
 import { format } from "date-fns";
 import { CallMessage, DetailResponse } from "@/types/sipcalls";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+} from "./ui/dropdown-menu";
 
 interface ModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sid: string;
+  showIndex?: boolean;
+  showRelativeTimestamp?: boolean;
 }
 
-export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
+export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelativeTimestamp = false }: ModalProps) {
   const [callDetail, setCallDetail] = useState<DetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +35,8 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
     null
   );
   const [uniqueIPs, setUniqueIPs] = useState<string[]>([]);
+  const [localShowIndex, setLocalShowIndex] = useState(showIndex);
+  const [localShowRelativeTimestamp, setLocalShowRelativeTimestamp] = useState(showRelativeTimestamp);
 
   function getUniqueIPs(data: DetailResponse | null): string[] {
     if (!data || !data.detail) return [];
@@ -133,7 +143,7 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
                       }}
                     />
                   ))}
-                  {callDetail?.detail[0].messages.map((msg, rowIdx) => {
+                  {callDetail?.detail[0].messages.map((msg, rowIdx, arr) => {
                     const ms =
                       msg.protocol_header.timeSeconds * 1000 +
                       msg.protocol_header.timeUseconds / 1000;
@@ -141,6 +151,24 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
                       new Date(ms).toISOString(),
                       "dd/MM/yyyy HH:mm:ss.SSS"
                     );
+
+                    let displayTimestamp = timestamp;
+                    if (localShowRelativeTimestamp) {
+                      if (rowIdx === 0) {
+                        displayTimestamp = "00";
+                      } else {
+                        const firstMsg = arr[0];
+                        const firstMs =
+                          firstMsg.protocol_header.timeSeconds * 1000 +
+                          firstMsg.protocol_header.timeUseconds / 1000;
+                        const diff = ms - firstMs;
+                        if (diff < 500) {
+                          displayTimestamp = `+${diff.toFixed(0)}ms`;
+                        } else {
+                          displayTimestamp = `+${(diff / 1000).toFixed(3)}s`;
+                        }
+                      }
+                    }
 
                     const getColumnPosition = (index: number) =>
                       `${((index + 1.5) / uniqueIPs.length + 1) * 100}%`;
@@ -166,7 +194,7 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
                       parseFloat(srcPos),
                       parseFloat(dstPos)
                     );
-                    const lineWidth = (lineEnd - lineStart) * 3;
+                    const lineWidth = (lineEnd - lineStart) * (uniqueIPs.length );
 
                     return (
                       <React.Fragment key={msg.id}>
@@ -182,7 +210,7 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
                                 : ""
                             }`}
                           >
-                            {timestamp}
+                            {localShowRelativeTimestamp ? displayTimestamp : timestamp}
                           </div>
                           {uniqueIPs.map((_, colIdx) => (
                             <div
@@ -207,7 +235,7 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
                                     }}
                                   >
                                     <span className="absolute select-none left-1/2 transform -translate-x-1/2 -translate-y-full text-xs overflow-hidden whitespace-nowrap text-ellipsis">
-                                      {extractSipMethod(msg.raw)}
+                                      {localShowIndex ? `[${rowIdx + 1}] ` : ""}{extractSipMethod(msg.raw)}
                                     </span>
                                     {colIdx !== dstIdx && (
                                       <div
@@ -296,10 +324,28 @@ export function CallFlow({ open, onOpenChange, sid }: ModalProps) {
           </ResizablePanel>
         </ResizablePanelGroup>
         <DialogFooter className="border-t">
-          <div className="pt-2">
-            <Button className="mr-2" variant="outline">
-              View <ChevronUp />{" "}
-            </Button>
+          <div className="pt-2 flex gap-4 items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="mr-2" variant="outline">
+                  View <ChevronUp />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuCheckboxItem
+                  checked={localShowIndex}
+                  onCheckedChange={setLocalShowIndex}
+                >
+                  Show Indexes
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={localShowRelativeTimestamp}
+                  onCheckedChange={setLocalShowRelativeTimestamp}
+                >
+                  Relative Timestamp
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button className="mr-2" variant="outline">
               Export
               <ChevronUp />{" "}

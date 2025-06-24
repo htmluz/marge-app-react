@@ -1,16 +1,13 @@
 import {
-  ChevronUp,
   LayoutDashboard,
   PhoneCall,
   Settings,
-  User2,
   Users,
 } from "lucide-react";
 
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -19,13 +16,7 @@ import {
   SidebarMenuItem,
 } from "../ui/sidebar";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 // Menu items.
 const items = [
@@ -52,6 +43,7 @@ const items = [
 ];
 
 export function AppSidebar() {
+  const location = useLocation();
   return (
     <Sidebar
       collapsible="icon"
@@ -65,7 +57,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={location.pathname === item.url}>
                     <Link to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>

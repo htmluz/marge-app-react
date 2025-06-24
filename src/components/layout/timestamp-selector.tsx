@@ -21,8 +21,12 @@ const presets = [
 
 const DEFAULT_PRESET = "24h";
 
-function getStartDateFromPreset(presetValue: string) {
+function getNowInGMT3() {
   const now = new Date();
+  return new Date(now.getTime() - 3 * 60 * 60 * 1000);
+}
+
+function getStartDateFromPreset(presetValue: string, now: Date) {
   let hours = 0;
   if (presetValue.endsWith("h")) {
     hours = parseInt(presetValue.replace("h", ""), 10);
@@ -36,18 +40,18 @@ export function TimestampSelect() {
   const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PRESET);
 
   useEffect(() => {
-    const now = new Date();
+    const now = getNowInGMT3();
     const end = now.toISOString().slice(0, 16);
-    const start = getStartDateFromPreset(DEFAULT_PRESET);
+    const start = getStartDateFromPreset(DEFAULT_PRESET, now);
     setStartDate(start);
     setEndDate(end);
   }, [setStartDate, setEndDate]);
 
   const handlePresetChange = (value: string) => {
     setSelectedPreset(value);
-    const now = new Date();
+    const now = getNowInGMT3();
     const end = now.toISOString().slice(0, 16);
-    const start = getStartDateFromPreset(value);
+    const start = getStartDateFromPreset(value, now);
     setStartDate(start);
     setEndDate(end);
   };
