@@ -9,15 +9,18 @@ export function Login() {
   const [password, setPassword] = useState("");
   const { signIn } = useAuth();
   const navigate = useNavigate();
-  console.log("login");
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     try {
       await signIn(username, password);
       navigate("/dashboard");
-    } catch (error) {
-      console.error("Erro ao fazer login:", error);
+    } catch (err: any) {
+      const apiError = err?.response?.data?.error || "Login failed";
+      setError(apiError);
+      console.error("Erro ao fazer login:", err);
     }
   };
 
@@ -41,6 +44,11 @@ export function Login() {
           placeholder="Password"
           required
         />
+        {error && (
+          <div className="text-red-500 text-sm font-bold" role="alert">
+            {error}
+          </div>
+        )}
         <Button type="submit" className="w-full">
           Login
         </Button>

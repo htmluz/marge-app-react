@@ -5,6 +5,7 @@ export interface DetailResponse {
 export interface CallDetail {
   sid: string;
   messages: CallMessage[];
+  ip_mappings?: Record<string, string>;
 }
 
 export interface CallMessage {

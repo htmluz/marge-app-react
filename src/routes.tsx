@@ -5,6 +5,7 @@ import { Login } from "./views/Login";
 import Layout from "./components/layout/layout";
 import SipCallsView from "./views/SipCallsView";
 import UsersView from "./views/UsersView";
+import TrunksView from "./views/TrunksView";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/login" replace /> },
@@ -29,6 +30,10 @@ export const router = createBrowserRouter([
           {
             path: "/users",
             element: <UsersView />,
+          },
+          {
+            path: "/trunks",
+            element: <TrunksView />,
           },
         ],
       },

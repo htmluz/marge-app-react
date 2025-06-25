@@ -8,7 +8,7 @@ import {
   ResizablePanelGroup,
 } from "./ui/resizable";
 import { ScrollArea } from "./ui/scroll-area";
-import { ChevronUp, Sparkles } from "lucide-react";
+import { ChevronUp } from "lucide-react";
 import React from "react";
 import { format } from "date-fns";
 import { CallMessage, DetailResponse } from "@/types/sipcalls";
@@ -25,9 +25,10 @@ interface ModalProps {
   sid: string;
   showIndex?: boolean;
   showRelativeTimestamp?: boolean;
+  showIpNames?: boolean;
 }
 
-export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelativeTimestamp = false }: ModalProps) {
+export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelativeTimestamp = false, showIpNames = true }: ModalProps) {
   const [callDetail, setCallDetail] = useState<DetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,8 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
   const [uniqueIPs, setUniqueIPs] = useState<string[]>([]);
   const [localShowIndex, setLocalShowIndex] = useState(showIndex);
   const [localShowRelativeTimestamp, setLocalShowRelativeTimestamp] = useState(showRelativeTimestamp);
+  const [localShowIpNames, setLocalShowIpNames] = useState(showIpNames);
+  const [ipMappings, setIpMappings] = useState<Record<string, string>>({});
 
   function getUniqueIPs(data: DetailResponse | null): string[] {
     if (!data || !data.detail) return [];
@@ -68,6 +71,7 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
     setCallDetail(null);
     setSelectedPacket(null);
     setUniqueIPs([]);
+    setIpMappings({});
     if (open && sid) {
       const fetchCallDetails = async () => {
         setCallDetail(null);
@@ -85,6 +89,9 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
           setSelectedPacket(response.data.detail[0].messages[0]);
           const orderedIPs = getUniqueIPs(response.data);
           setUniqueIPs(orderedIPs);
+          if (response.data.detail[0].ip_mappings) {
+            setIpMappings(response.data.detail[0].ip_mappings);
+          }
         } catch (e) {
           console.log(e);
           // TODO: Implement seterror
@@ -97,6 +104,7 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
       setCallDetail(null);
       setError(null);
       setIsLoading(false);
+      setIpMappings({});
     }
   }, [open, sid]);
 
@@ -120,6 +128,9 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
               {uniqueIPs.map((ip) => (
                 <div key={ip} className="text-center font-bold border-b pb-1">
                   {ip}
+                  {localShowIpNames && ipMappings[ip] && ipMappings[ip] !== ip && (
+                    <div className="text-xs border-t mx-8">{ipMappings[ip]}</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -343,6 +354,12 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
                   onCheckedChange={setLocalShowRelativeTimestamp}
                 >
                   Relative Timestamp
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={localShowIpNames}
+                  onCheckedChange={setLocalShowIpNames}
+                >
+                  Show IP Names
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>

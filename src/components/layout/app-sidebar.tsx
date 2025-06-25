@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   PhoneCall,
+  Server,
   Settings,
   Users,
 } from "lucide-react";
@@ -39,6 +40,11 @@ const items = [
     title: "Users",
     url: "/users",
     icon: Users,
+  },
+  {
+    title: "Trunks",
+    url: "/trunks",
+    icon: Server,
   },
 ];
 

@@ -25,7 +25,6 @@ import {
   ChartSpline,
   Info,
   Loader,
-  Sparkles,
 } from "lucide-react";
 import {
   ContextMenu,
