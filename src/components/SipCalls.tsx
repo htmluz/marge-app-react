@@ -44,7 +44,6 @@ interface Call {
   end_date: string;
   caller: string;
   callee: string;
-  sip_status: string;
 }
 
 interface CallsResponse {
@@ -63,7 +62,6 @@ interface CallsFilter {
   call_id?: string;
   caller?: string;
   callee?: string;
-  sip_status?: string;
 }
 
 interface Column {
@@ -122,7 +120,6 @@ export const SipCalls: React.FC<SipCallsProps> = ({
     call_id: "",
     caller: "",
     callee: "",
-    sip_status: "",
   });
   const [inputFilters, setInputFilters] = useState<CallsFilter>({
     page: 1,
@@ -132,25 +129,17 @@ export const SipCalls: React.FC<SipCallsProps> = ({
     call_id: "",
     caller: "",
     callee: "",
-    sip_status: "",
   });
 
   const columns: Column[] = [
     {
-      key: "start_date",
+      key: "create_date",
       label: "Start Date",
-      format: (value: string) => formatDate(value),
-      input: false,
-    },
-    {
-      key: "end_date",
-      label: "End Date",
       format: (value: string) => formatDate(value),
       input: false,
     },
     { key: "caller", label: "Caller", input: true },
     { key: "callee", label: "Callee", input: true },
-    { key: "sip_status", label: "SIP Status", input: true },
     { key: "sid", label: "Call ID", input: true },
   ];
 
@@ -274,7 +263,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
     <div className="w-full selection:bg-primary selection:text-primary-foreground">
       {/* Filters */}
       {showFilter && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {filteredColumns.map((column) => (
             <div key={column.key} className="space-y-2">
               <label htmlFor={column.key} className="text-sm font-medium">
@@ -289,7 +278,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
             </div>
           ))}
           <label className="text-xs italic text-muted-foreground">
-            Utilize * como um wildcard
+            Use * as a wildcard
           </label>
         </div>
       )}
