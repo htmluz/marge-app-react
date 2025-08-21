@@ -18,11 +18,17 @@ export const useTimestamp = () => {
   return ctx;
 };
 
+// Função para obter a data de hoje no formato YYYY-MM-DD
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
 export const TimestampProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(getTodayDate());
+  const [endDate, setEndDate] = useState<string>(getTodayDate());
 
   return (
     <TimestampContext.Provider

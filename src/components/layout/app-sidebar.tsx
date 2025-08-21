@@ -1,4 +1,5 @@
 import {
+  KeyRound,
   LayoutDashboard,
   PhoneCall,
   Server,
@@ -30,6 +31,11 @@ const items = [
     title: "Calls",
     url: "/sip/calls",
     icon: PhoneCall,
+  },
+  {
+    title: "Registers",
+    url: "#",
+    icon: KeyRound,
   },
   {
     title: "Settings",

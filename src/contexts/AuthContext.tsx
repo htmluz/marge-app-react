@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (username: string, password: string) => {
     const response = await api.post("/signin", { username, password });
     const { access_token } = response.data;
+    console.debug(response.data);
 
     sessionStorage.setItem("access_token", access_token);
     setIsAuthenticated(true);

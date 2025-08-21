@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTimestamp } from "@/contexts/TimestampContext";
+import { useRefreshControl } from "@/contexts/RefreshContext";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -44,6 +45,7 @@ function getStartDateFromPreset(presetValue: string, now: Date) {
 
 export function TimestampSelect() {
   const { setStartDate, setEndDate } = useTimestamp();
+  const { setIsCustomTime } = useRefreshControl();
   const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PRESET);
   const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -57,8 +59,11 @@ export function TimestampSelect() {
       const start = getStartDateFromPreset(selectedPreset, now);
       setStartDate(start);
       setEndDate(end);
+      setIsCustomTime(false);
+    } else {
+      setIsCustomTime(true);
     }
-  }, [selectedPreset, setStartDate, setEndDate]);
+  }, [selectedPreset, setStartDate, setEndDate, setIsCustomTime]);
 
   const adjustForGMT3 = (date: Date) => {
     // Subtract 3 hours

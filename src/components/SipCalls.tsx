@@ -111,6 +111,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   const [voiceDetailModal, setVoiceDetailModal] = useState(false);
   const [callFlowSid, setCallFlowSid] = useState<string>("");
   const filterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialMount = useRef(true);
 
   const [filters, setFilters] = useState<CallsFilter>({
     page: 1,
@@ -204,6 +205,12 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   };
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      console.debug("[DEBUG] - Debounce inicial pulado");
+      return;
+    }
+
     if (filterTimeoutRef.current) {
       clearTimeout(filterTimeoutRef.current);
     }

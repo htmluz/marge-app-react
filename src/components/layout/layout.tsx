@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "../ui/button";
 import { LogOut } from "lucide-react";
 import { TimestampSelect } from "./timestamp-selector";
+import { RefreshToggle } from "./refresh-selector";
 
 export default function Layout() {
   const { signOut } = useAuth();
@@ -24,8 +25,9 @@ export default function Layout() {
             <div className="mt-1"></div>
           </div>
           <div className="flex">
-            <div className="border-r mr-2 pr-2 ">
+            <div className="border-r mr-2 pr-2 flex">
               <TimestampSelect />
+              <RefreshToggle />
             </div>
             <ModeToggle />
             <Button variant="ghost" className="size-7" onClick={signOut}>

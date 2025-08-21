@@ -2,7 +2,13 @@ import axios from "axios";
 
 const api = axios.create({
   // TODO: mudar pra env
-  baseURL: "http://localhost:3000",
+  baseURL: "http://10.90.0.58:3666",
+  withCredentials: true,
+});
+
+// Instância separada para refresh token sem interceptors
+const refreshApi = axios.create({
+  baseURL: "http://10.90.0.58:3666",
   withCredentials: true,
 });
 
@@ -23,13 +29,17 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const response = await api.get("/refresh_token");
+        console.log("refresh_token primeiro try");
+        const response = await refreshApi.get("/refresh_token");
         const { access_token } = response.data;
         sessionStorage.setItem("access_token", access_token);
 
         originalRequest.headers.Authorization = `Bearer ${access_token}`;
         return api(originalRequest);
       } catch (refreshError) {
+        console.log("refreshError", refreshError);
+        // Se o refresh token também falhou, marca como já tentado para evitar loop
+        originalRequest._retry = true;
         sessionStorage.removeItem("access_token");
         window.location.href = "/login";
         return Promise.reject(refreshError);
