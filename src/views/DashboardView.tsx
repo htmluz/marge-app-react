@@ -44,7 +44,7 @@ export const DashboardView: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <Card className="p-0">
+        <Card className="p-0 border-none">
           <SipCalls
             showFilter={false}
             showFooter={false}

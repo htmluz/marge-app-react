@@ -28,6 +28,44 @@ interface ModalProps {
   showIpNames?: boolean;
 }
 
+// Custom hook for managing view options with localStorage
+function useViewOptions(initialOptions: {
+  showIndex: boolean;
+  showRelativeTimestamp: boolean;
+  showIpNames: boolean;
+  showCallColors: boolean;
+}) {
+  const [options, setOptions] = useState(() => {
+    // Try to load from localStorage on initial render
+    try {
+      const stored = localStorage.getItem('callFlowViewOptions');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Merge with initial options to handle new options that might be added
+        return { ...initialOptions, ...parsed };
+      }
+    } catch (error) {
+      console.warn('Failed to load view options from localStorage:', error);
+    }
+    return initialOptions;
+  });
+
+  const updateOption = (key: keyof typeof options, value: boolean) => {
+    setOptions((prev: typeof options) => {
+      const newOptions = { ...prev, [key]: value };
+      // Save to localStorage
+      try {
+        localStorage.setItem('callFlowViewOptions', JSON.stringify(newOptions));
+      } catch (error) {
+        console.warn('Failed to save view options to localStorage:', error);
+      }
+      return newOptions;
+    });
+  };
+
+  return [options, updateOption] as const;
+}
+
 export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRelativeTimestamp = false, showIpNames = true }: ModalProps) {
   const [callDetail, setCallDetail] = useState<DetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,11 +74,15 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
     null
   );
   const [uniqueIPs, setUniqueIPs] = useState<string[]>([]);
-  const [localShowIndex, setLocalShowIndex] = useState(showIndex);
-  const [localShowRelativeTimestamp, setLocalShowRelativeTimestamp] = useState(showRelativeTimestamp);
-  const [localShowIpNames, setLocalShowIpNames] = useState(showIpNames);
-  const [localShowCallColors, setLocalShowCallColors] = useState(false);
   const [ipMappings, setIpMappings] = useState<Record<string, string>>({});
+
+  // Use the custom hook for view options
+  const [viewOptions, updateViewOption] = useViewOptions({
+    showIndex,
+    showRelativeTimestamp,
+    showIpNames,
+    showCallColors: false
+  });
 
   // Color palette for different calls
   const callColors = [
@@ -54,7 +96,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
 
   // Function to get color for a specific call SID
   const getCallColor = (callSid: string): string => {
-    if (!localShowCallColors || !Array.isArray(sids) || sids.length <= 1) {
+    if (!viewOptions.showCallColors || !Array.isArray(sids) || sids.length <= 1) {
       return "var(--foreground)"; // Default color
     }
     
@@ -198,7 +240,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
               {uniqueIPs.map((ip) => (
                 <div key={ip} className="text-center font-bold border-b pb-1">
                   {ip}
-                  {localShowIpNames && ipMappings[ip] && ipMappings[ip] !== ip && (
+                  {ipMappings[ip] && ipMappings[ip] !== ip && (
                     <div className="text-xs border-t mx-8">{ipMappings[ip]}</div>
                   )}
                 </div>
@@ -234,7 +276,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                     );
 
                     let displayTimestamp = timestamp;
-                    if (localShowRelativeTimestamp) {
+                    if (viewOptions.showRelativeTimestamp) {
                       if (rowIdx === 0) {
                         displayTimestamp = "00";
                       } else {
@@ -291,7 +333,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                                 : ""
                             }`}
                           >
-                            {localShowRelativeTimestamp ? displayTimestamp : timestamp}
+                            {viewOptions.showRelativeTimestamp ? displayTimestamp : timestamp}
                           </div>
                           {uniqueIPs.map((_, colIdx) => (
                             <div
@@ -317,7 +359,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                                     }}
                                   >
                                     <span className="absolute select-none left-1/2 transform -translate-x-1/2 -translate-y-full text-xs overflow-hidden whitespace-nowrap text-ellipsis">
-                                      {localShowIndex ? `[${rowIdx + 1}] ` : ""}{extractSipMethod(msg.raw)}
+                                      {viewOptions.showIndex ? `[${rowIdx + 1}] ` : ""}{extractSipMethod(msg.raw)}
                                     </span>
                                     {colIdx !== dstIdx && (
                                       <div
@@ -413,7 +455,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
         <DialogFooter className="border-t">
             {Array.isArray(sids) && sids.length > 1 && (
               <div className="p-2 rounded my-auto text-center align-center select-none flex gap-2">
-                {localShowCallColors && (
+                {viewOptions.showCallColors && (
                   <div className="flex flex-wrap gap-2 justify-center mt-1">
                     {sids.map((sid, index) => (
                       <div key={sid} className="flex items-center gap-1 text-xs">
@@ -442,26 +484,26 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuCheckboxItem
-                  checked={localShowIndex}
-                  onCheckedChange={setLocalShowIndex}
+                  checked={viewOptions.showIndex}
+                  onCheckedChange={(checked) => updateViewOption('showIndex', checked)}
                 >
                   Show Indexes
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
-                  checked={localShowRelativeTimestamp}
-                  onCheckedChange={setLocalShowRelativeTimestamp}
+                  checked={viewOptions.showRelativeTimestamp}
+                  onCheckedChange={(checked) => updateViewOption('showRelativeTimestamp', checked)}
                 >
                   Relative Timestamp
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
-                  checked={localShowIpNames}
-                  onCheckedChange={setLocalShowIpNames}
+                  checked={viewOptions.showIpNames}
+                  onCheckedChange={(checked) => updateViewOption('showIpNames', checked)}
                 >
                   Show IP Names
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
-                  checked={localShowCallColors}
-                  onCheckedChange={setLocalShowCallColors}
+                  checked={viewOptions.showCallColors}
+                  onCheckedChange={(checked) => updateViewOption('showCallColors', checked)}
                   disabled={!Array.isArray(sids) || sids.length <= 1}
                 >
                   Differ Calls By Color
