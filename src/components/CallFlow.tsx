@@ -18,6 +18,7 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
 } from "./ui/dropdown-menu";
+import { toApiIsoString } from "@/services/date";
 
 interface ModalProps {
   open: boolean;
@@ -26,6 +27,11 @@ interface ModalProps {
   showIndex?: boolean;
   showRelativeTimestamp?: boolean;
   showIpNames?: boolean;
+  isWatchMode?: boolean;
+  watchConfig?: {
+    domain: string;
+    users: string[];
+  };
 }
 
 // Custom hook for managing view options with localStorage
@@ -66,7 +72,7 @@ function useViewOptions(initialOptions: {
   return [options, updateOption] as const;
 }
 
-export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRelativeTimestamp = false, showIpNames = true }: ModalProps) {
+export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRelativeTimestamp = false, showIpNames = false, isWatchMode = false, watchConfig }: ModalProps) {
   const [callDetail, setCallDetail] = useState<DetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +81,16 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
   );
   const [uniqueIPs, setUniqueIPs] = useState<string[]>([]);
   const [ipMappings, setIpMappings] = useState<Record<string, string>>({});
+  
+  // Watch mode state
+  const [watchData, setWatchData] = useState<CallMessage[]>([]);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  const [isWatching, setIsWatching] = useState(false);
+  const [refreshIntervalMs, setRefreshIntervalMs] = useState(10000); // Default 10 seconds
+  
+  // Maximum number of messages to keep in watch mode
+  const MAX_WATCH_MESSAGES = 128;
 
   // Use the custom hook for view options
   const [viewOptions, updateViewOption] = useViewOptions({
@@ -167,58 +183,281 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
     return mergedMappings;
   }
 
+  // Watch mode functions
+  const fetchWatchData = async (startTime: Date, endTime: Date) => {
+    if (!watchConfig?.domain) return;
+
+    try {
+      console.debug("[DEBUG] - fetchWatchData -", startTime.toISOString(), endTime.toISOString()) 
+      const params = new URLSearchParams();
+      params.append("domain", watchConfig.domain);
+      params.append("start_date", toApiIsoString(startTime.toISOString()));
+      params.append("end_date", toApiIsoString(endTime.toISOString()));
+      
+      if (watchConfig.users.length > 0) {
+        params.append("users", watchConfig.users.join(","));
+      }
+
+      const response = await api.get<{ data: CallMessage[] }>("/sip/registers-watch", { params });
+      console.debug(response.data.data)
+      return response.data.data || [];
+    } catch (error) {
+      console.error("Error fetching watch data:", error);
+      return [];
+    }
+  };
+
+  const startWatching = async () => {
+    if (!watchConfig?.domain) return;
+
+    console.debug("[DEBUG] - startWatching called");
+    
+    // Clear any existing interval first
+    if (refreshInterval) {
+      console.debug("[DEBUG] - Clearing existing interval before starting new one");
+      clearInterval(refreshInterval);
+      setRefreshInterval(null);
+    }
+
+    setIsWatching(true);
+    setLastRefreshTime(new Date());
+    
+    // Initial fetch for last 10 seconds
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - 10000); // 10 seconds ago
+    
+    const initialData = await fetchWatchData(startTime, endTime);
+    console.debug("[DEBUG] - Initial data loaded:", initialData?.length || 0, "messages");
+    if (initialData && initialData.length > 0) {
+      console.debug("[DEBUG] - Initial message IDs:", initialData.map(msg => msg.id));
+      // Check for duplicates in initial data
+      const initialIds = initialData.map(msg => msg.id);
+      const uniqueInitialIds = new Set(initialIds);
+      if (initialIds.length !== uniqueInitialIds.size) {
+        console.debug("[DEBUG] - WARNING: Duplicates found in initial data!");
+        console.debug("[DEBUG] - Duplicate IDs:", initialIds.filter((id, index) => initialIds.indexOf(id) !== index));
+      }
+    }
+    setWatchData(initialData || []);
+    setLastRefreshTime(endTime);
+
+    // Set up interval for continuous updates using the current refresh interval
+    const interval = setInterval(async () => {
+      const currentTime = new Date();
+      const newData = await fetchWatchData(lastRefreshTime || endTime, currentTime);
+      
+      if (newData && newData.length > 0) {
+        console.debug("[DEBUG] - Adding new messages:", newData.length, "messages");
+        
+        setWatchData(prev => {
+          console.debug("[DEBUG] - Current watch data count:", prev.length);
+          
+          // Check for duplicates using the current state
+          const existingIds = new Set(prev.map(msg => msg.id));
+          const uniqueNewData = newData.filter(msg => !existingIds.has(msg.id));
+          
+          console.debug("[DEBUG] - Unique new messages:", uniqueNewData.length, "messages");
+          console.debug("[DEBUG] - Duplicate messages filtered out:", newData.length - uniqueNewData.length);
+          
+          if (uniqueNewData.length > 0) {
+            console.debug("[DEBUG] - Setting new watch data. Current count:", prev.length, "Adding:", uniqueNewData.length);
+            console.debug("[DEBUG] - New message IDs:", uniqueNewData.map(msg => msg.id));
+            
+            const newData = [...prev, ...uniqueNewData];
+            console.debug("[DEBUG] - New total count after merge:", newData.length);
+            
+            // Check for duplicates in the merged data
+            const allIds = newData.map(msg => msg.id);
+            const uniqueIds = new Set(allIds);
+            if (allIds.length !== uniqueIds.size) {
+              console.debug("[DEBUG] - WARNING: Duplicates found after merge!");
+              console.debug("[DEBUG] - Duplicate IDs:", allIds.filter((id, index) => allIds.indexOf(id) !== index));
+            }
+            
+            // Limit to MAX_WATCH_MESSAGES and remove older messages if needed
+            if (newData.length > MAX_WATCH_MESSAGES) {
+              const messagesToRemove = newData.length - MAX_WATCH_MESSAGES;
+              console.debug("[DEBUG] - Removing", messagesToRemove, "older messages to maintain limit of", MAX_WATCH_MESSAGES);
+              const limitedData = newData.slice(messagesToRemove);
+              console.debug("[DEBUG] - Final count after limiting:", limitedData.length);
+              return limitedData;
+            }
+            
+            return newData;
+          }
+          
+          return prev; // Return unchanged if no unique data
+        });
+      }
+      
+      setLastRefreshTime(currentTime);
+    }, refreshIntervalMs);
+
+    setRefreshInterval(interval);
+  };
+
+  const restartWatching = async () => {
+    if (isWatching) {
+      stopWatching();
+      await startWatching();
+    }
+  };
+
+  const stopWatching = () => {
+    console.debug("[DEBUG] - stopWatching called");
+    setIsWatching(false);
+    if (refreshInterval) {
+      console.debug("[DEBUG] - Clearing interval:", refreshInterval);
+      clearInterval(refreshInterval);
+      setRefreshInterval(null);
+    } else {
+      console.debug("[DEBUG] - No interval to clear");
+    }
+  };
+
   useEffect(() => {
     setCallDetail(null);
     setSelectedPacket(null);
     setUniqueIPs([]);
     setIpMappings({});
-    if (open && sids) {
-      const fetchCallDetails = async () => {
-        setCallDetail(null);
-        setIsLoading(true);
-        setError(null);
-        try {
-          // Convert sids to string if it's an array
-          const sidsParam = Array.isArray(sids) ? sids.join(',') : sids;
-          
-          const response = await api.get<DetailResponse>("/sip/call-detail", {
-            params: {
-              sids: sidsParam,
-              rtcp: false,
-            },
-          });
-          console.log(response.data);
-          setCallDetail(response.data);
-          
-          // Get all messages and set the first one as selected
-          const allMessages = getAllMessages(response.data);
-          if (allMessages.length > 0) {
-            setSelectedPacket(allMessages[0]);
+    setWatchData([]);
+    setLastRefreshTime(null);
+    
+    if (open) {
+      if (isWatchMode && watchConfig?.domain) {
+        // Start watch mode
+        startWatching();
+      } else if (sids) {
+        // Normal call detail mode
+        const fetchCallDetails = async () => {
+          setCallDetail(null);
+          setIsLoading(true);
+          setError(null);
+          try {
+            // Convert sids to string if it's an array
+            const sidsParam = Array.isArray(sids) ? sids.join(',') : sids;
+            
+            const response = await api.get<DetailResponse>("/sip/call-detail", {
+              params: {
+                sids: sidsParam,
+                rtcp: false,
+              },
+            });
+            console.log(response.data);
+            setCallDetail(response.data);
+            
+            // Get all messages and set the first one as selected
+            const allMessages = getAllMessages(response.data);
+            if (allMessages.length > 0) {
+              setSelectedPacket(allMessages[0]);
+            }
+            
+            const orderedIPs = getUniqueIPs(response.data);
+            setUniqueIPs(orderedIPs);
+            
+            const mergedMappings = mergeIpMappings(response.data);
+            setIpMappings(mergedMappings);
+          } catch (e) {
+            console.log(e);
+            // TODO: Implement seterror
+          } finally {
+            setIsLoading(false);
           }
-          
-          const orderedIPs = getUniqueIPs(response.data);
-          setUniqueIPs(orderedIPs);
-          
-          const mergedMappings = mergeIpMappings(response.data);
-          setIpMappings(mergedMappings);
-        } catch (e) {
-          console.log(e);
-          // TODO: Implement seterror
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchCallDetails();
+        };
+        fetchCallDetails();
+      }
     } else {
+      // Cleanup when modal closes
+      console.debug("[DEBUG] - Modal closing, cleaning up");
       setCallDetail(null);
       setError(null);
       setIsLoading(false);
       setIpMappings({});
+      setWatchData([]);
+      setLastRefreshTime(null);
+      stopWatching();
     }
-  }, [open, sids]);
+  }, [open, sids, isWatchMode, watchConfig?.domain]);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    console.debug("[DEBUG] - Component mounted, cleanup function registered");
+    return () => {
+      console.debug("[DEBUG] - Component unmounting, calling stopWatching");
+      stopWatching();
+    };
+  }, []);
+
+  // Restart watching when refresh interval changes
+  useEffect(() => {
+    if (isWatchMode && isWatching) {
+      restartWatching();
+    }
+  }, [refreshIntervalMs]);
 
   // Get all messages from all calls
   const allMessages = getAllMessages(callDetail);
+
+  // Get messages for watch mode
+  const getWatchMessages = (): CallMessage[] => {
+    if (!isWatchMode || !watchData.length) return [];
+    
+    // Sort watch messages by timestamp
+    const sortedMessages = watchData.sort((a, b) => {
+      const timeA = a.protocol_header.timeSeconds * 1000 + a.protocol_header.timeUseconds / 1000;
+      const timeB = b.protocol_header.timeSeconds * 1000 + b.protocol_header.timeUseconds / 1000;
+      return timeA - timeB;
+    });
+    
+    // Debug: Check for duplicate IDs in sorted messages
+    const messageIds = sortedMessages.map(msg => msg.id);
+    const uniqueIds = new Set(messageIds);
+    if (messageIds.length !== uniqueIds.size) {
+      console.debug("[DEBUG] - Duplicate IDs found in sorted messages!");
+      console.debug("[DEBUG] - Total messages:", messageIds.length);
+      console.debug("[DEBUG] - Unique IDs:", uniqueIds.size);
+      console.debug("[DEBUG] - Duplicate IDs:", messageIds.filter((id, index) => messageIds.indexOf(id) !== index));
+    }
+    
+    return sortedMessages;
+  };
+
+  // Get unique IPs for watch mode
+  const getWatchUniqueIPs = (): string[] => {
+    if (!isWatchMode || !watchData.length) return [];
+
+    const uIPs: string[] = [];
+    const seenIPs = new Set<string>();
+
+    for (const msg of watchData) {
+      const { srcIp, dstIp } = msg.protocol_header;
+      if (srcIp && !seenIPs.has(srcIp)) {
+        seenIPs.add(srcIp);
+        uIPs.push(srcIp);
+      }
+      if (dstIp && !seenIPs.has(dstIp)) {
+        seenIPs.add(dstIp);
+        uIPs.push(dstIp);
+      }
+    }
+    return uIPs;
+  };
+
+  // Use appropriate data based on mode
+  const messages = isWatchMode ? getWatchMessages() : allMessages;
+  const uniqueIPsToUse = isWatchMode ? getWatchUniqueIPs() : uniqueIPs;
+
+  // Debug: Check final messages array for duplicates
+  if (isWatchMode && messages.length > 0) {
+    const finalMessageIds = messages.map(msg => msg.id);
+    const uniqueFinalIds = new Set(finalMessageIds);
+    if (finalMessageIds.length !== uniqueFinalIds.size) {
+      console.debug("[DEBUG] - CRITICAL: Duplicate IDs in final messages array!");
+      console.debug("[DEBUG] - Total messages to render:", finalMessageIds.length);
+      console.debug("[DEBUG] - Unique IDs:", uniqueFinalIds.size);
+      console.debug("[DEBUG] - Duplicate IDs:", finalMessageIds.filter((id, index) => finalMessageIds.indexOf(id) !== index));
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -231,16 +470,16 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
             <div
               className="grid sticky bg-transparent top-0 cursor-default mr-2 overflow-y-auto"
               style={{
-                gridTemplateColumns: `repeat(${uniqueIPs.length + 1}, 1fr)`,
+                gridTemplateColumns: `repeat(${uniqueIPsToUse.length + 1}, 1fr)`,
               }}
             >
               <div className="text-center font-bold border-b border-r pb-1">
                 Timestamp
               </div>
-              {uniqueIPs.map((ip) => (
+              {uniqueIPsToUse.map((ip) => (
                 <div key={ip} className="text-center font-bold border-b pb-1">
                   {ip}
-                  {ipMappings[ip] && ipMappings[ip] !== ip && (
+                  {viewOptions.showIpNames && ipMappings[ip] && ipMappings[ip] !== ip && (
                     <div className="text-xs border-t mx-8">{ipMappings[ip]}</div>
                   )}
                 </div>
@@ -252,21 +491,21 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                 <div
                   className="grid cursor-default mr-2 h-full overflow-y-auto"
                   style={{
-                    gridTemplateColumns: `repeat(${uniqueIPs.length + 1}, 1fr)`,
+                    gridTemplateColumns: `repeat(${uniqueIPsToUse.length + 1}, 1fr)`,
                   }}
                 >
-                  {uniqueIPs.map((_, idx) => (
+                  {uniqueIPsToUse.map((_, idx) => (
                     <div
                       key={`column-line-${idx}`}
                       className="absolute top-0 bottom-0 border-dashed border-l pointer-events-none z-10"
                       style={{
                         left: `calc(${
-                          (idx + 1.5) / (uniqueIPs.length + 1)
+                          (idx + 1.5) / (uniqueIPsToUse.length + 1)
                         } * 100%)`,
                       }}
                     />
                   ))}
-                  {allMessages.map((msg, rowIdx, arr) => {
+                  {messages.map((msg, rowIdx, arr) => {
                     const ms =
                       msg.protocol_header.timeSeconds * 1000 +
                       msg.protocol_header.timeUseconds / 1000;
@@ -294,7 +533,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                     }
 
                     const getColumnPosition = (index: number) =>
-                      `${((index + 1.5) / uniqueIPs.length + 1) * 100}%`;
+                      `${((index + 1.5) / uniqueIPsToUse.length + 1) * 100}%`;
 
                     const extractSipMethod = (
                       message: string
@@ -305,9 +544,9 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                       return match ? match[1] || match[2] : null;
                     };
 
-                    const srcIdx = uniqueIPs.indexOf(msg.protocol_header.srcIp);
+                    const srcIdx = uniqueIPsToUse.indexOf(msg.protocol_header.srcIp);
                     const srcPos = getColumnPosition(srcIdx);
-                    const dstIdx = uniqueIPs.indexOf(msg.protocol_header.dstIp);
+                    const dstIdx = uniqueIPsToUse.indexOf(msg.protocol_header.dstIp);
                     const dstPos = getColumnPosition(dstIdx);
                     const lineStart = Math.min(
                       parseFloat(srcPos),
@@ -317,7 +556,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                       parseFloat(srcPos),
                       parseFloat(dstPos)
                     );
-                    const lineWidth = (lineEnd - lineStart) * (uniqueIPs.length );
+                    const lineWidth = (lineEnd - lineStart) * (uniqueIPsToUse.length );
 
                     return (
                       <React.Fragment key={msg.id}>
@@ -335,7 +574,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                           >
                             {viewOptions.showRelativeTimestamp ? displayTimestamp : timestamp}
                           </div>
-                          {uniqueIPs.map((_, colIdx) => (
+                          {uniqueIPsToUse.map((_, colIdx) => (
                             <div
                               key={colIdx}
                               className={`text-center relative group-hover:bg-secondary ${
@@ -382,7 +621,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                               {colIdx === dstIdx && srcIdx === dstIdx && (
                                 <div
                                   className={`absolute ${
-                                    srcIdx < uniqueIPs.length / 2
+                                    srcIdx < uniqueIPsToUse.length / 2
                                       ? "left-[60%]"
                                       : "right-[50%]"
                                   } -translate-x-1/2 z-20 pointer-events-none`}
@@ -395,7 +634,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                                   >
                                     <g
                                       transform={
-                                        srcIdx > uniqueIPs.length / 2
+                                        srcIdx > uniqueIPsToUse.length / 2
                                           ? ""
                                           : "scale(-1, 1) translate(-40, 0)"
                                       }
@@ -420,9 +659,9 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                       </React.Fragment>
                     );
                   })}
-                  {allMessages.length === 0 && !isLoading && (
+                  {messages.length === 0 && !isLoading && (
                     <div className="col-span-full text-center py-8 text-muted-foreground">
-                      No messages found for the selected calls.
+                      {isWatchMode ? 'No SIP register messages received yet. Watching for new messages...' : 'No messages found for the selected calls.'}
                     </div>
                   )}
                 </div>
@@ -453,29 +692,94 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
           </ResizablePanel>
         </ResizablePanelGroup>
         <DialogFooter className="border-t">
-            {Array.isArray(sids) && sids.length > 1 && (
+            {isWatchMode ? (
               <div className="p-2 rounded my-auto text-center align-center select-none flex gap-2">
-                {viewOptions.showCallColors && (
-                  <div className="flex flex-wrap gap-2 justify-center mt-1">
-                    {sids.map((sid, index) => (
-                      <div key={sid} className="flex items-center gap-1 text-xs">
-                        <div 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: callColors[index % callColors.length] }}
-                        />
-                        <span className="text-muted-foreground">
-                          {sid.split('@')[0]}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`w-2 h-2 rounded-full ${isWatching ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                  <span className="text-sm text-muted-foreground">
+                    {isWatching ? 'Watching' : 'Stopped'} - {watchConfig?.domain}
+                  </span>
+                  {watchConfig?.users && watchConfig.users.length > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      (Users: {watchConfig.users.join(', ')})
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Showing {sids.length} selected calls with {allMessages.length} total messages
+                  {messages.length} messages received
                 </p>
               </div>
+            ) : (
+              Array.isArray(sids) && sids.length > 1 && (
+                <div className="p-2 rounded my-auto text-center align-center select-none flex gap-2">
+                  {viewOptions.showCallColors && (
+                    <div className="flex flex-wrap gap-2 justify-center mt-1">
+                      {sids.map((sid, index) => (
+                        <div key={sid} className="flex items-center gap-1 text-xs">
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: callColors[index % callColors.length] }}
+                          />
+                          <span className="text-muted-foreground">
+                            {sid.split('@')[0]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Showing {sids.length} selected calls with {messages.length} total messages
+                  </p>
+                </div>
+              )
             )}
-          <div className="pt-2 flex gap-4 items-center">
+          <div className="pt-2 flex gap-2 items-center">
+            {isWatchMode && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="mr-2" variant="outline">
+                    Refresh: {refreshIntervalMs / 1000}s <ChevronUp />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuCheckboxItem
+                    checked={refreshIntervalMs === 5000}
+                    onCheckedChange={() => setRefreshIntervalMs(5000)}
+                  >
+                    5 seconds
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={refreshIntervalMs === 10000}
+                    onCheckedChange={() => setRefreshIntervalMs(10000)}
+                  >
+                    10 seconds
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={refreshIntervalMs === 30000}
+                    onCheckedChange={() => setRefreshIntervalMs(30000)}
+                  >
+                    30 seconds
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={refreshIntervalMs === 60000}
+                    onCheckedChange={() => setRefreshIntervalMs(60000)}
+                  >
+                    1 minute
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            {isWatchMode && (
+              <Button 
+                className="mr-2" 
+                variant={isWatching ? "destructive" : "default"}
+                onClick={isWatching ? stopWatching : startWatching}
+              >
+                {isWatching ? "Stop Watching" : "Start Watching"}
+              </Button>
+            )}
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button className="mr-2" variant="outline">
@@ -510,6 +814,7 @@ export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRela
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            
             <Button className="mr-2" variant="outline">
               Export
               <ChevronUp />{" "}

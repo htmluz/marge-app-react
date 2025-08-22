@@ -35,6 +35,7 @@ import {
 import { Separator } from "./ui/separator";
 import { CallFlow } from "./CallFlow";
 import { VoiceDetail } from "./RtcpDetails";
+import { toApiIsoString } from "@/services/date";
 
 // Interfaces
 interface Call {
@@ -157,26 +158,16 @@ export const SipCalls: React.FC<SipCallsProps> = ({
     }
   }
 
-  function toIsoString(localDate: string): string {
-    if (!localDate) return "";
-    try {
-      const date = new Date(localDate);
-      return date.toISOString();
-    } catch {
-      return "";
-    }
-  }
-
   const loadCalls = async () => {
     if (!inputFilters.start_date || !inputFilters.end_date) return;
     setLoading(true);
     try {
       const apiFilters = { ...filters };
       if (apiFilters.start_date) {
-        apiFilters.start_date = toIsoString(apiFilters.start_date);
+        apiFilters.start_date = toApiIsoString(apiFilters.start_date);
       }
       if (apiFilters.end_date) {
-        apiFilters.end_date = toIsoString(apiFilters.end_date);
+        apiFilters.end_date = toApiIsoString(apiFilters.end_date);
       }
       const res = await fetchCalls(apiFilters);
       setCalls(res.calls);

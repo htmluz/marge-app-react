@@ -34,7 +34,7 @@ const items = [
   },
   {
     title: "Registers",
-    url: "#",
+    url: "/sip/registers",
     icon: KeyRound,
   },
   {

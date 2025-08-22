@@ -14,6 +14,8 @@ import { CustomTime } from "@/components/CustomTime";
 import { type DateRange } from "react-day-picker";
 
 const presets = [
+  { label: "Last 15 minutes", value: "15m" },
+  { label: "Last 30 minutes", value: "30m" },
   { label: "Last 1 hour", value: "1h" },
   { label: "Last 3 hours", value: "3h" },
   { label: "Last 6 hours", value: "6h" },
@@ -27,7 +29,7 @@ const presets = [
   { label: "Custom", value: "custom" },
 ];
 
-const DEFAULT_PRESET = "24h";
+const DEFAULT_PRESET = "15m";
 
 function getNowInGMT3() {
   const now = new Date();
@@ -35,11 +37,15 @@ function getNowInGMT3() {
 }
 
 function getStartDateFromPreset(presetValue: string, now: Date) {
-  let hours = 0;
+  let deltaMs = 0;
   if (presetValue.endsWith("h")) {
-    hours = parseInt(presetValue.replace("h", ""), 10);
+    const hours = parseInt(presetValue.replace("h", ""), 10);
+    deltaMs = hours * 60 * 60 * 1000;
+  } else if (presetValue.endsWith("m")) {
+    const minutes = parseInt(presetValue.replace("m", ""), 10);
+    deltaMs = minutes * 60 * 1000;
   }
-  const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
+  const start = new Date(now.getTime() - deltaMs);
   return start.toISOString().slice(0, 16);
 }
 
