@@ -22,13 +22,13 @@ import {
 interface ModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sid: string;
+  sids: string | string[];
   showIndex?: boolean;
   showRelativeTimestamp?: boolean;
   showIpNames?: boolean;
 }
 
-export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelativeTimestamp = false, showIpNames = true }: ModalProps) {
+export function CallFlow({ open, onOpenChange, sids, showIndex = false, showRelativeTimestamp = false, showIpNames = true }: ModalProps) {
   const [callDetail, setCallDetail] = useState<DetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +39,30 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
   const [localShowIndex, setLocalShowIndex] = useState(showIndex);
   const [localShowRelativeTimestamp, setLocalShowRelativeTimestamp] = useState(showRelativeTimestamp);
   const [localShowIpNames, setLocalShowIpNames] = useState(showIpNames);
+  const [localShowCallColors, setLocalShowCallColors] = useState(false);
   const [ipMappings, setIpMappings] = useState<Record<string, string>>({});
+
+  // Color palette for different calls
+  const callColors = [
+    "rgb(239, 68, 68)", // red-500
+    "rgb(59, 130, 246)", // blue-500
+    "rgb(16, 185, 129)", // emerald-500
+    "rgb(245, 158, 11)", // amber-500
+    "rgb(139, 92, 246)", // violet-500
+    "rgb(236, 72, 153)", // pink-500
+  ];
+
+  // Function to get color for a specific call SID
+  const getCallColor = (callSid: string): string => {
+    if (!localShowCallColors || !Array.isArray(sids) || sids.length <= 1) {
+      return "var(--foreground)"; // Default color
+    }
+    
+    const callIndex = sids.indexOf(callSid);
+    if (callIndex === -1) return "var(--foreground)";
+    
+    return callColors[callIndex % callColors.length];
+  };
 
   function getUniqueIPs(data: DetailResponse | null): string[] {
     if (!data || !data.detail) return [];
@@ -67,31 +90,75 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
     return uIPs;
   }
 
+  function getAllMessages(data: DetailResponse | null): CallMessage[] {
+    if (!data || !data.detail) return [];
+
+    const allMessages: CallMessage[] = [];
+    for (const call of data.detail) {
+      if (call.messages) {
+        // Add call SID to each message for identification
+        const messagesWithCallId = call.messages.map(msg => ({
+          ...msg,
+          callSid: call.sid
+        }));
+        allMessages.push(...messagesWithCallId);
+      }
+    }
+    
+    // Sort messages by timestamp
+    return allMessages.sort((a, b) => {
+      const timeA = a.protocol_header.timeSeconds * 1000 + a.protocol_header.timeUseconds / 1000;
+      const timeB = b.protocol_header.timeSeconds * 1000 + b.protocol_header.timeUseconds / 1000;
+      return timeA - timeB;
+    });
+  }
+
+  function mergeIpMappings(data: DetailResponse | null): Record<string, string> {
+    if (!data || !data.detail) return {};
+
+    const mergedMappings: Record<string, string> = {};
+    for (const call of data.detail) {
+      if (call.ip_mappings) {
+        Object.assign(mergedMappings, call.ip_mappings);
+      }
+    }
+    return mergedMappings;
+  }
+
   useEffect(() => {
     setCallDetail(null);
     setSelectedPacket(null);
     setUniqueIPs([]);
     setIpMappings({});
-    if (open && sid) {
+    if (open && sids) {
       const fetchCallDetails = async () => {
         setCallDetail(null);
         setIsLoading(true);
         setError(null);
         try {
+          // Convert sids to string if it's an array
+          const sidsParam = Array.isArray(sids) ? sids.join(',') : sids;
+          
           const response = await api.get<DetailResponse>("/sip/call-detail", {
             params: {
-              sids: sid,
+              sids: sidsParam,
               rtcp: false,
             },
           });
           console.log(response.data);
           setCallDetail(response.data);
-          setSelectedPacket(response.data.detail[0].messages[0]);
+          
+          // Get all messages and set the first one as selected
+          const allMessages = getAllMessages(response.data);
+          if (allMessages.length > 0) {
+            setSelectedPacket(allMessages[0]);
+          }
+          
           const orderedIPs = getUniqueIPs(response.data);
           setUniqueIPs(orderedIPs);
-          if (response.data.detail[0].ip_mappings) {
-            setIpMappings(response.data.detail[0].ip_mappings);
-          }
+          
+          const mergedMappings = mergeIpMappings(response.data);
+          setIpMappings(mergedMappings);
         } catch (e) {
           console.log(e);
           // TODO: Implement seterror
@@ -106,7 +173,10 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
       setIsLoading(false);
       setIpMappings({});
     }
-  }, [open, sid]);
+  }, [open, sids]);
+
+  // Get all messages from all calls
+  const allMessages = getAllMessages(callDetail);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,7 +224,7 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
                       }}
                     />
                   ))}
-                  {callDetail?.detail[0].messages.map((msg, rowIdx, arr) => {
+                  {allMessages.map((msg, rowIdx, arr) => {
                     const ms =
                       msg.protocol_header.timeSeconds * 1000 +
                       msg.protocol_header.timeUseconds / 1000;
@@ -235,7 +305,7 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
                               {colIdx === srcIdx && (
                                 <div className="relative">
                                   <div
-                                    className="absolute z-10 mt-5 h-[2px] bg-foreground"
+                                    className="absolute z-10 mt-5 h-[2px]"
                                     style={{
                                       left: "51.5%",
                                       width: `${lineWidth}%`,
@@ -243,6 +313,7 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
                                         srcIdx > dstIdx
                                           ? "translateX(-100%)"
                                           : "translateX(0)",
+                                      backgroundColor: getCallColor((msg as any).callSid || ""),
                                     }}
                                   >
                                     <span className="absolute select-none left-1/2 transform -translate-x-1/2 -translate-y-full text-xs overflow-hidden whitespace-nowrap text-ellipsis">
@@ -250,7 +321,7 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
                                     </span>
                                     {colIdx !== dstIdx && (
                                       <div
-                                        className="absolute w-0 h-0 text-foreground"
+                                        className="absolute w-0 h-0"
                                         style={{
                                           top: "-4px",
                                           [srcIdx < dstIdx ? "right" : "left"]:
@@ -259,7 +330,7 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
                                           borderBottom: "5px solid transparent",
                                           [srcIdx < dstIdx
                                             ? "borderLeft"
-                                            : "borderRight"]: "8px solid ",
+                                            : "borderRight"]: `8px solid ${getCallColor((msg as any).callSid || "")}`,
                                         }}
                                       />
                                     )}
@@ -289,13 +360,13 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
                                     >
                                       <path
                                         d="M 30 5 L -40 5 L -40 35 L 26 35"
-                                        stroke="var(--foreground)"
+                                        stroke={getCallColor((msg as any).callSid || "")}
                                         strokeWidth="3"
                                         fill="none"
                                       />
                                       <polygon
                                         points="32,35 24,30 24,40"
-                                        fill="var(--foreground)"
+                                        fill={getCallColor((msg as any).callSid || "")}
                                       />
                                     </g>
                                   </svg>
@@ -307,6 +378,11 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
                       </React.Fragment>
                     );
                   })}
+                  {allMessages.length === 0 && !isLoading && (
+                    <div className="col-span-full text-center py-8 text-muted-foreground">
+                      No messages found for the selected calls.
+                    </div>
+                  )}
                 </div>
               </div>
             </ScrollArea>
@@ -335,6 +411,28 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
           </ResizablePanel>
         </ResizablePanelGroup>
         <DialogFooter className="border-t">
+            {Array.isArray(sids) && sids.length > 1 && (
+              <div className="p-2 rounded my-auto text-center align-center select-none flex gap-2">
+                {localShowCallColors && (
+                  <div className="flex flex-wrap gap-2 justify-center mt-1">
+                    {sids.map((sid, index) => (
+                      <div key={sid} className="flex items-center gap-1 text-xs">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: callColors[index % callColors.length] }}
+                        />
+                        <span className="text-muted-foreground">
+                          {sid.split('@')[0]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground mt-1">
+                  Showing {sids.length} selected calls with {allMessages.length} total messages
+                </p>
+              </div>
+            )}
           <div className="pt-2 flex gap-4 items-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -360,6 +458,13 @@ export function CallFlow({ open, onOpenChange, sid, showIndex = false, showRelat
                   onCheckedChange={setLocalShowIpNames}
                 >
                   Show IP Names
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={localShowCallColors}
+                  onCheckedChange={setLocalShowCallColors}
+                  disabled={!Array.isArray(sids) || sids.length <= 1}
+                >
+                  Differ Calls By Color
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>

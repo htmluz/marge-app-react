@@ -110,6 +110,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   const [callFlowModal, setCallFlowModal] = useState(false);
   const [voiceDetailModal, setVoiceDetailModal] = useState(false);
   const [callFlowSid, setCallFlowSid] = useState<string>("");
+  const [callFlowSids, setCallFlowSids] = useState<string[]>([]);
   const filterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialMount = useRef(true);
 
@@ -245,6 +246,14 @@ export const SipCalls: React.FC<SipCallsProps> = ({
 
   const handleOpenCallFlow = (sid: string) => {
     setCallFlowSid(sid);
+    setCallFlowSids([]);
+    setCallFlowModal(true);
+  };
+
+  const handleOpenSelectedCallsFlow = () => {
+    const selectedSids = selectedCalls.map(call => call.sid);
+    setCallFlowSids(selectedSids);
+    setCallFlowSid("");
     setCallFlowModal(true);
   };
 
@@ -263,6 +272,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   }, [start_date, end_date, currentPage, pageSize]);
 
   useEffect(() => {
+    setSelectedCalls([]);
     loadCalls();
   }, [filters]);
 
@@ -386,7 +396,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
                       </ContextMenuItem>
                       <ContextMenuItem
                         onClick={() => {
-                          alert(JSON.stringify(selectedCalls));
+                          handleOpenSelectedCallsFlow();
                         }}
                         className="flex justify-between"
                         disabled={selectedCalls.length < 2}
@@ -463,7 +473,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
       <CallFlow
         open={callFlowModal}
         onOpenChange={setCallFlowModal}
-        sid={callFlowSid}
+        sids={callFlowSids.length > 0 ? callFlowSids : callFlowSid}
       />
 
       <VoiceDetail

@@ -15,6 +15,7 @@ export interface CallMessage {
   create_date: string;
   data_header: SIPDataHeader;
   protocol_header: ProtocolHeader;
+  callSid?: string; // Optional field to identify which call this message belongs to
 }
 
 export interface SIPDataHeader {
