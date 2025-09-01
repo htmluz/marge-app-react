@@ -32,7 +32,6 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        console.log("refresh_token primeiro try");
         const response = await refreshApi.get("/refresh_token");
         const { access_token } = response.data;
         sessionStorage.setItem("access_token", access_token);
@@ -40,7 +39,6 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${access_token}`;
         return api(originalRequest);
       } catch (refreshError) {
-        console.log("refreshError", refreshError);
         // Se o refresh token também falhou, marca como já tentado para evitar loop
         originalRequest._retry = true;
         sessionStorage.removeItem("access_token");

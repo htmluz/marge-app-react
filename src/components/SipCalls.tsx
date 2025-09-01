@@ -25,6 +25,7 @@ import {
   ChartSpline,
   Info,
   Loader,
+  RefreshCw,
 } from "lucide-react";
 import {
   ContextMenu,
@@ -36,6 +37,8 @@ import { Separator } from "./ui/separator";
 import { CallFlow } from "./CallFlow";
 import { VoiceDetail } from "./RtcpDetails";
 import { toApiIsoString } from "@/services/date";
+import { useTimestamp } from "@/contexts/TimestampContext";
+import { useRefreshControl } from "@/contexts/RefreshContext";
 
 // Interfaces
 interface Call {
@@ -100,6 +103,9 @@ export const SipCalls: React.FC<SipCallsProps> = ({
   end_date,
   per_page = 25,
 }) => {
+  const { setStartDate, setEndDate } = useTimestamp();
+  const { isCustomTime } = useRefreshControl();
+  
   const [calls, setCalls] = useState<Call[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCalls, setSelectedCalls] = useState<Call[]>([]);
@@ -158,6 +164,42 @@ export const SipCalls: React.FC<SipCallsProps> = ({
     }
   }
 
+  const updateTimestampContext = () => {
+    if (isCustomTime) return;
+    
+    console.debug("[DEBUG] - Updating timestamp context");
+    // Calculate the current time window based on the difference between start and end dates
+    const startDate = new Date(filters.start_date);
+    const endDate = new Date(filters.end_date);
+    const timeWindowMs = endDate.getTime() - startDate.getTime();
+    
+    // Set end date to now (GMT-3)
+    const now = new Date();
+    const gmt3Time = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    const newEndDate = gmt3Time.toISOString().slice(0, 16) + ":59";
+
+    // Calculate new start date based on the time window
+    const newStartDate = new Date(gmt3Time.getTime() - timeWindowMs);
+    const newStartDateStr = newStartDate.toISOString().slice(0, 16);
+    
+    // Update the timestamp context
+    setStartDate(newStartDateStr);
+    setEndDate(newEndDate);
+
+    // Update local filters
+    setInputFilters(prev => ({
+      ...prev,
+      start_date: newStartDateStr,
+      end_date: newEndDate,
+      page: 1
+    }));
+    // setFilters(prev => ({
+    //   ...prev,
+    //   start_date: newStartDateStr,
+    //   end_date: newEndDate
+    // }));
+  };
+
   const loadCalls = async () => {
     if (!inputFilters.start_date || !inputFilters.end_date) return;
     setLoading(true);
@@ -210,6 +252,8 @@ export const SipCalls: React.FC<SipCallsProps> = ({
       setFilters((prev) => ({
         ...prev,
         ...inputFilters,
+        start_date,
+        end_date,
         page: 1,
       }));
     }, 500);
@@ -219,7 +263,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
         clearTimeout(filterTimeoutRef.current);
       }
     };
-  }, [inputFilters]);
+  }, [inputFilters, start_date, end_date]);
 
   const isSelected = (call: Call) => {
     return selectedCalls.some((selected) => selected.sid === call.sid);
@@ -260,7 +304,7 @@ export const SipCalls: React.FC<SipCallsProps> = ({
       start_date,
       end_date,
     }));
-  }, [start_date, end_date, currentPage, pageSize]);
+  }, [end_date, currentPage, pageSize]);
 
   useEffect(() => {
     setSelectedCalls([]);
@@ -271,24 +315,42 @@ export const SipCalls: React.FC<SipCallsProps> = ({
     <div className="w-full selection:bg-primary selection:text-primary-foreground">
       {/* Filters */}
       {showFilter && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {filteredColumns.map((column) => (
-            <div key={column.key} className="space-y-2">
-              <label htmlFor={column.key} className="text-sm font-medium">
-                {column.label}
-              </label>
-              <Input
-                id={column.key}
-                value={inputFilters[column.key as keyof CallsFilter] || ""}
-                onChange={(e) => handleFilterChange(column.key, e.target.value)}
-                placeholder={`Filter by ${column.label.toLowerCase()}`}
-              />
-            </div>
-          ))}
-          <label className="text-xs italic text-muted-foreground">
-            Use * as a wildcard
-          </label>
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-0">
+            {filteredColumns.map((column) => (
+              <div key={column.key} className="space-y-2">
+                <label htmlFor={column.key} className="text-sm font-medium">
+                  {column.label}
+                </label>
+                <Input
+                  id={column.key}
+                  value={inputFilters[column.key as keyof CallsFilter] || ""}
+                  onChange={(e) => handleFilterChange(column.key, e.target.value)}
+                  placeholder={`Filter by ${column.label.toLowerCase()}`}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between w-full my-2">
+            <label className="text-xs italic text-muted-foreground">
+              Use * as a wildcard
+            </label>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                updateTimestampContext();
+                setCurrentPage(1);
+                // setFilters(prev => ({ ...prev, page: 1 }));
+                // loadCalls();
+              }}
+              disabled={loading}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+        </>
       )}
 
       {/* Table */}

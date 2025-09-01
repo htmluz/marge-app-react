@@ -22,7 +22,7 @@ const refreshOptions = [
 const REFRESH_STORAGE_KEY = "marge-refresh-interval";
 
 export function RefreshToggle() {
-  const { endDate, setEndDate } = useTimestamp();
+  const { startDate, endDate, setStartDate, setEndDate } = useTimestamp();
   const { isCustomTime } = useRefreshControl();
   const [refreshInterval, setRefreshInterval] = useState(() => {
     const saved = localStorage.getItem(REFRESH_STORAGE_KEY);
@@ -30,12 +30,30 @@ export function RefreshToggle() {
   });
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Função para atualizar o end_date para o horário atual
-  const updateEndDate = () => {
+  // Função para atualizar o start_date e end_date para manter a janela de tempo
+  const updateTimeWindow = () => {
     const now = new Date();
     const gmt3Time = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-    const newEndDate = gmt3Time.toISOString().slice(0, 16);
-    console.debug("[DEBUG] - Atualizando endDate para:", newEndDate);
+    
+    // Calcular a diferença entre start_date e end_date para manter a janela
+    const currentStart = new Date(startDate);
+    const currentEnd = new Date(endDate);
+    const timeWindowMs = currentEnd.getTime() - currentStart.getTime();
+    
+    // Definir o novo end_date como agora
+    const newEndDate = gmt3Time.toISOString().slice(0, 16) + ":59";
+    
+    // Definir o novo start_date para manter a mesma janela de tempo
+    const newStartDate = new Date(gmt3Time.getTime() - timeWindowMs);
+    const newStartDateStr = newStartDate.toISOString().slice(0, 16);
+    
+    console.debug("[DEBUG] - Atualizando janela de tempo:", {
+      startDate: newStartDateStr,
+      endDate: newEndDate,
+      timeWindowMs: timeWindowMs / 1000 / 60 + " minutos"
+    });
+    
+    setStartDate(newStartDateStr);
     setEndDate(newEndDate);
   };
 
@@ -54,7 +72,7 @@ export function RefreshToggle() {
     }
 
     if (refreshInterval > 0 && !isCustomTime) {
-      intervalRef.current = setInterval(updateEndDate, refreshInterval);
+      intervalRef.current = setInterval(updateTimeWindow, refreshInterval);
     }
 
     return () => {

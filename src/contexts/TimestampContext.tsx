@@ -24,11 +24,20 @@ const getTodayDate = () => {
   return today.toISOString().split('T')[0];
 };
 
+// Função para obter a data de hoje no formato YYYY-MM-DD com horário 23:59:59
+const getTodayEndDate = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}T23:59:59`;
+};
+
 export const TimestampProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [startDate, setStartDate] = useState<string>(getTodayDate());
-  const [endDate, setEndDate] = useState<string>(getTodayDate());
+  const [endDate, setEndDate] = useState<string>(getTodayEndDate());
 
   return (
     <TimestampContext.Provider

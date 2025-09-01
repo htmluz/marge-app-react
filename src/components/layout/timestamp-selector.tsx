@@ -61,7 +61,7 @@ export function TimestampSelect() {
   useEffect(() => {
     if (selectedPreset !== "custom") {
       const now = getNowInGMT3();
-      const end = now.toISOString().slice(0, 16);
+      const end = now.toISOString().slice(0, 16) + ":59";
       const start = getStartDateFromPreset(selectedPreset, now);
       setStartDate(start);
       setEndDate(end);
@@ -96,8 +96,8 @@ export function TimestampSelect() {
       const endTime = customEndTime || "23:59";
       const [endHour, endMinute] = endTime.split(":");
       const endDate = new Date(range.to);
-      endDate.setHours(Number(endHour), Number(endMinute));
-      setEndDate(adjustForGMT3(endDate).toISOString().slice(0, 16));
+      endDate.setHours(Number(endHour), Number(endMinute), 59);
+      setEndDate(adjustForGMT3(endDate).toISOString().slice(0, 19));
     }
   };
 
@@ -118,8 +118,8 @@ export function TimestampSelect() {
     if (customRange?.to) {
       const [hour, minute] = value.split(":");
       const endDate = new Date(customRange.to);
-      endDate.setHours(Number(hour), Number(minute));
-      setEndDate(adjustForGMT3(endDate).toISOString().slice(0, 16));
+      endDate.setHours(Number(hour), Number(minute), 59);
+      setEndDate(adjustForGMT3(endDate).toISOString().slice(0, 19));
     }
   };
 

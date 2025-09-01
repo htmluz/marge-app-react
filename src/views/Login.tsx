@@ -28,7 +28,7 @@ export function Login() {
     <div className="flex items-center justify-center min-h-screen">
       <form onSubmit={handleSubmit} className="space-y-4 w-lg">
         <h2 className="text-2xl font-bold cursor-default selection:bg-primary selection:text-primary-foreground">
-          Welcome back!
+          Welcome to Marge!
         </h2>
         <Input
           type="text"
