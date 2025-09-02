@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader } from "lucide-react";
 import api from "@/services/api";
-import type { User, UserRole } from "@/types/user";
+import type { Role, User, UserRole } from "@/types/user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,13 +14,6 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface UsersResponse {
   users: User[];
@@ -43,6 +36,7 @@ export const UserTable: React.FC = () => {
     roles: [] as number[],
   });
   const [submitting, setSubmitting] = useState(false);
+  const [rolesOptions, setRolesOptions] = useState<Role[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const fetchUsers = () => {
@@ -57,8 +51,19 @@ export const UserTable: React.FC = () => {
       .finally(() => setLoading(false));
   };
 
+  const fetchRoles = () => {
+    api.get<{ roles: Role[] }>("/users/roles")
+      .then((res) => {
+        setRolesOptions(res.data.roles);
+      })
+      .catch((err) => {
+        console.error("Failed to load roles:", err);
+      });
+  }
+
   useEffect(() => {
     fetchUsers();
+    fetchRoles();
   }, []);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,15 +142,22 @@ export const UserTable: React.FC = () => {
               <div>
                 <label className="block mb-1 font-medium">Roles</label>
                 <div className="flex gap-2">
-                  {ROLE_OPTIONS.map((role) => (
+                  {rolesOptions.map((role) => (
                     <Button
-                      key={role.value}
+                      key={role.id}
                       type="button"
-                      variant={form.roles.includes(role.value) ? "default" : "outline"}
-                      onClick={() => handleRoleChange(role.value)}
-                      className={form.roles.includes(role.value) ? "bg-primary text-primary-foreground" : ""}
+                      variant={form.roles.includes(role.id) ? "default" : "outline"}
+                      title={role.description}
+                      onClick={() => handleRoleChange(role.id)}
+                      className={
+                        `${
+                          form.roles.includes(role.id)
+                            ? "bg-primary text-primary-foreground"
+                            : ""
+                        }`
+                      }
                     >
-                      {role.label}
+                      {role.name}
                     </Button>
                   ))}
                 </div>
