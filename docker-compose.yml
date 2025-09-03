@@ -1,0 +1,32 @@
+networks:
+  marge-test:
+    driver: bridge
+
+services:
+  marge-server:
+    image: htmluz/marge-server:latest
+    container_name: marge-server
+    ports:
+      - "3666:3000"
+    environment:
+      - "PGHOST=localhost"
+      - "PGPORT=5432"
+      - "PGUSERNAME=homer"
+      - "PGPASSWORD=homer"
+      - "PGDATABASE=homer"
+      - "JWT_SECRET=chave-top-demaiii"
+      - "JWT_SECRET_REFRESH=cherrywavesandxerces"
+    networks:
+      - marge-test
+    labels:
+      org.label-schema.group: "backend"
+
+  marge-app:
+    image: textemarge:latest
+    container_name: marge-app
+    ports:
+      - "2223:3555"
+    networks:
+      - marge-test
+    labels:
+      org.label-schema.group: "frontend"

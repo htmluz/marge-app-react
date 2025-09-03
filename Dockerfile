@@ -2,21 +2,21 @@ FROM oven/bun:1.2.21-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json tsconfig.json eslint.config.js vite.config.ts components.json tsconfig.app.json tsconfig.node.json ./
 
-RUN bun install --frozen-lockfile
+RUN bun install
 
 COPY . .
 
-RUN bun run build
+RUN bunx --bun vite build
 
 
-FROM oven/bun:1.2.21-alpine AS runner
+FROM nginx:stable-alpine3.21-perl AS runner
 
-WORKDIR /app
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-COPY --from=builder /app/dist ./dist
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 3555
 
-CMD ["bunx", "serve", "-s", "dist", "-l", "3555"]
+CMD ["nginx", "-g", "daemon off;"]
