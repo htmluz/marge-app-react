@@ -30,29 +30,28 @@ export function RefreshToggle() {
   });
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Função para atualizar o start_date e end_date para manter a janela de tempo
   const updateTimeWindow = () => {
     const now = new Date();
-    const gmt3Time = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-    
-    // Calcular a diferença entre start_date e end_date para manter a janela
-    const currentStart = new Date(startDate);
-    const currentEnd = new Date(endDate);
-    const timeWindowMs = currentEnd.getTime() - currentStart.getTime();
-    
-    // Definir o novo end_date como agora
-    const newEndDate = gmt3Time.toISOString().slice(0, 16) + ":59";
-    
-    // Definir o novo start_date para manter a mesma janela de tempo
-    const newStartDate = new Date(gmt3Time.getTime() - timeWindowMs);
-    const newStartDateStr = newStartDate.toISOString().slice(0, 16);
-    
-    console.debug("[DEBUG] - Atualizando janela de tempo:", {
-      startDate: newStartDateStr,
-      endDate: newEndDate,
-      timeWindowMs: timeWindowMs / 1000 / 60 + " minutos"
-    });
-    
+    const nowGMT3 = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+
+    const currentPreset = localStorage.getItem("timestampPreset") || "15m";
+    if (currentPreset === "custom") {
+      return;
+    }
+
+    let deltaMs = 0;
+    if (currentPreset.endsWith("h")) {
+      const hours = parseInt(currentPreset.replace("h", ""), 10);
+      deltaMs = hours * 60 * 60 * 1000;
+    } else if (currentPreset.endsWith("m")) {
+      const minutes = parseInt(currentPreset.replace("m", ""), 10);
+      deltaMs = minutes * 60 * 1000;
+    }
+
+    const newEndDate = nowGMT3.toISOString().slice(0, 19);
+    const newStartTime = new Date(nowGMT3.getTime() - deltaMs);
+    const newStartDateStr = newStartTime.toISOString().slice(0, 16);
+
     setStartDate(newStartDateStr);
     setEndDate(newEndDate);
   };
@@ -96,20 +95,24 @@ export function RefreshToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           className="size-7"
           size="icon"
           disabled={isCustomTime}
         >
-          <RefreshCw className={cn(
-            "h-[1rem] w-[1rem] transition-all",
-            isRefreshActive ? "rotate-0 scale-100" : "-rotate-90 scale-0"
-          )} />
-          <RefreshCwOff className={cn(
-            "absolute h-[1rem] w-[1rem] transition-all",
-            isRefreshActive ? "rotate-90 scale-0" : "rotate-0 scale-100"
-          )} />
+          <RefreshCw
+            className={cn(
+              "h-[1rem] w-[1rem] transition-all",
+              isRefreshActive ? "rotate-0 scale-100" : "-rotate-90 scale-0"
+            )}
+          />
+          <RefreshCwOff
+            className={cn(
+              "absolute h-[1rem] w-[1rem] transition-all",
+              isRefreshActive ? "rotate-90 scale-0" : "rotate-0 scale-100"
+            )}
+          />
           <span className="sr-only">Toggle refresh</span>
         </Button>
       </DropdownMenuTrigger>
@@ -120,7 +123,9 @@ export function RefreshToggle() {
             onClick={() => handleRefreshChange(option.value)}
             className={cn(
               refreshInterval === option.value && "font-semibold text-primary",
-              isCustomTime && option.value > 0 && "opacity-50 cursor-not-allowed"
+              isCustomTime &&
+                option.value > 0 &&
+                "opacity-50 cursor-not-allowed"
             )}
             disabled={isCustomTime && option.value > 0}
           >

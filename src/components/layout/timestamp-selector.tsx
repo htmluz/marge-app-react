@@ -29,47 +29,27 @@ const presets = [
   { label: "Custom", value: "custom" },
 ];
 
-const DEFAULT_PRESET = "15m";
-
-function getNowInGMT3() {
-  const now = new Date();
-  return new Date(now.getTime() - 3 * 60 * 60 * 1000);
-}
-
-function getStartDateFromPreset(presetValue: string, now: Date) {
-  let deltaMs = 0;
-  if (presetValue.endsWith("h")) {
-    const hours = parseInt(presetValue.replace("h", ""), 10);
-    deltaMs = hours * 60 * 60 * 1000;
-  } else if (presetValue.endsWith("m")) {
-    const minutes = parseInt(presetValue.replace("m", ""), 10);
-    deltaMs = minutes * 60 * 1000;
-  }
-  const start = new Date(now.getTime() - deltaMs);
-  return start.toISOString().slice(0, 16);
-}
-
 export function TimestampSelect() {
-  const { setStartDate, setEndDate } = useTimestamp();
+  const { setStartDate, setEndDate, getPresetDates, preset, setPreset } =
+    useTimestamp();
   const { setIsCustomTime } = useRefreshControl();
-  const [selectedPreset, setSelectedPreset] = useState(DEFAULT_PRESET);
-  const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(
+    undefined
+  );
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [customStartTime, setCustomStartTime] = useState("00:00");
   const [customEndTime, setCustomEndTime] = useState("23:59");
 
   useEffect(() => {
-    if (selectedPreset !== "custom") {
-      const now = getNowInGMT3();
-      const end = now.toISOString().slice(0, 16) + ":59";
-      const start = getStartDateFromPreset(selectedPreset, now);
+    if (preset !== "custom") {
+      const { start, end } = getPresetDates(preset);
       setStartDate(start);
       setEndDate(end);
       setIsCustomTime(false);
     } else {
       setIsCustomTime(true);
     }
-  }, [selectedPreset, setStartDate, setEndDate, setIsCustomTime]);
+  }, [preset, setStartDate, setEndDate, setIsCustomTime, getPresetDates]);
 
   const adjustForGMT3 = (date: Date) => {
     // Subtract 3 hours
@@ -77,7 +57,7 @@ export function TimestampSelect() {
   };
 
   const handlePresetChange = (value: string) => {
-    setSelectedPreset(value);
+    setPreset(value);
     if (value !== "custom") {
       setDropdownOpen(false);
     }
@@ -124,8 +104,7 @@ export function TimestampSelect() {
   };
 
   const selectedLabel =
-    presets.find((preset) => preset.value === selectedPreset)?.label ||
-    "Select";
+    presets.find((p) => p.value === preset)?.label || "Select";
 
   return (
     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
@@ -142,9 +121,12 @@ export function TimestampSelect() {
       </div>
       <DropdownMenuContent align="end">
         <div className="flex flex-row">
-          {selectedPreset === "custom" && (
+          {preset === "custom" && (
             <div className="p-2 flex flex-col items-start gap-2">
-              <CustomTime dateRange={customRange} onChange={handleCustomRangeChange} />
+              <CustomTime
+                dateRange={customRange}
+                onChange={handleCustomRangeChange}
+              />
               <div className="flex justify-between w-full mt-2">
                 <label className="flex w-[47%] flex-col text-xs font-medium">
                   Start Time
@@ -168,27 +150,29 @@ export function TimestampSelect() {
             </div>
           )}
           <div className="flex flex-col min-w-[160px]">
-            {presets.filter(preset => preset.value !== "custom").map((preset) => (
-              <DropdownMenuItem
-                key={preset.value}
-                onClick={() => handlePresetChange(preset.value)}
-                className={cn(
-                  selectedPreset === preset.value && "font-semibold text-primary"
-                )}
-              >
-                {preset.label}
-              </DropdownMenuItem>
-            ))}
+            {presets
+              .filter((p) => p.value !== "custom")
+              .map((p) => (
+                <DropdownMenuItem
+                  key={p.value}
+                  onClick={() => handlePresetChange(p.value)}
+                  className={cn(
+                    preset === p.value && "font-semibold text-primary"
+                  )}
+                >
+                  {p.label}
+                </DropdownMenuItem>
+              ))}
             {/* Custom Time option: prevent menu from closing */}
             <div
               key="custom"
               className={cn(
                 "px-2 py-1.5 cursor-default text-sm rounded-sm hover:bg-accent hover:text-accent-foreground",
-                selectedPreset === "custom" && "font-semibold text-primary"
+                preset === "custom" && "font-semibold text-primary"
               )}
-              onClick={e => {
+              onClick={(e) => {
                 e.stopPropagation();
-                setSelectedPreset("custom");
+                setPreset("custom");
                 setDropdownOpen(true);
               }}
             >
