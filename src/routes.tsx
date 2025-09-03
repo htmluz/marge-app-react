@@ -7,6 +7,7 @@ import SipCallsView from "./views/SipCallsView";
 import SipRegistersView from "./views/SipRegistersView";
 import UsersView from "./views/UsersView";
 import TrunksView from "./views/TrunksView";
+import SettingsView from "./views/SettingsView";
 
 export const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/login" replace /> },
@@ -31,6 +32,10 @@ export const router = createBrowserRouter([
           {
             path: "/sip/registers",
             element: <SipRegistersView />,
+          },
+          {
+            path: "/settings",
+            element: <SettingsView />,
           },
           {
             path: "/users",
