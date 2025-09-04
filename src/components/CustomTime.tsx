@@ -10,7 +10,7 @@ export function CustomTime({ dateRange, onChange }: CustomTimeProps) {
   return (
     <Calendar
       mode="range"
-      defaultMonth={dateRange?.from}
+      defaultMonth={dateRange?.from ?? new Date()}
       selected={dateRange}
       onSelect={onChange}
       className="rounded-lg border shadow-sm"

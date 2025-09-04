@@ -41,12 +41,29 @@ function getStartDateFromPreset(presetValue: string, now: Date) {
 
 function getPresetDates(presetValue: string) {
   const now = getNowInGMT3();
+  // Special handling for custom: read stored values, or fallback to default 15m window
+  if (presetValue === "custom") {
+    try {
+      const savedStart = localStorage.getItem("marge-custom-start");
+      const savedEnd = localStorage.getItem("marge-custom-end");
+      if (savedStart && savedEnd) {
+        return { start: savedStart, end: savedEnd };
+      }
+    } catch {}
+    // Fallback: compute 15m window
+    const end = now.toISOString().slice(0, 16) + ":59";
+    const start = getStartDateFromPreset("15m", now);
+    return { start, end };
+  }
+
   const end = now.toISOString().slice(0, 16) + ":59";
   const start = getStartDateFromPreset(presetValue, now);
   return { start, end };
 }
 
 const DEFAULT_PRESET = "15m";
+const CUSTOM_START_STORAGE_KEY = "marge-custom-start";
+const CUSTOM_END_STORAGE_KEY = "marge-custom-end";
 
 export const TimestampProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -54,20 +71,61 @@ export const TimestampProvider: React.FC<{ children: React.ReactNode }> = ({
   const savedPreset = localStorage.getItem("timestampPreset") || DEFAULT_PRESET;
   const [preset, setPresetState] = useState(savedPreset);
 
-  const initialDates = getPresetDates(preset);
-  const [startDate, setStartDate] = useState<string>(initialDates.start);
-  const [endDate, setEndDate] = useState<string>(initialDates.end);
+  // Resolve initial dates based on preset and any saved custom range
+  let initialDates = getPresetDates(preset);
+  if (savedPreset === "custom") {
+    const savedStart = localStorage.getItem(CUSTOM_START_STORAGE_KEY);
+    const savedEnd = localStorage.getItem(CUSTOM_END_STORAGE_KEY);
+    if (savedStart && savedEnd) {
+      initialDates = { start: savedStart, end: savedEnd };
+    }
+  }
+  const [startDateState, _setStartDate] = useState<string>(initialDates.start);
+  const [endDateState, _setEndDate] = useState<string>(initialDates.end);
 
   const setPreset = (newPreset: string) => {
     localStorage.setItem("timestampPreset", newPreset);
+    // If switching to custom and no saved custom dates exist, initialize with a default window
+    if (newPreset === "custom") {
+      const savedStart = localStorage.getItem(CUSTOM_START_STORAGE_KEY);
+      const savedEnd = localStorage.getItem(CUSTOM_END_STORAGE_KEY);
+      if (!savedStart || !savedEnd) {
+        const { start, end } = getPresetDates(DEFAULT_PRESET);
+        try {
+          localStorage.setItem(CUSTOM_START_STORAGE_KEY, start);
+          localStorage.setItem(CUSTOM_END_STORAGE_KEY, end);
+        } catch {}
+        _setStartDate(start);
+        _setEndDate(end);
+      }
+    }
     setPresetState(newPreset);
+  };
+
+  // Wrapped setters to also persist custom range when preset is custom
+  const setStartDate = (date: string) => {
+    _setStartDate(date);
+    if (preset === "custom") {
+      try {
+        localStorage.setItem(CUSTOM_START_STORAGE_KEY, date);
+      } catch {}
+    }
+  };
+
+  const setEndDate = (date: string) => {
+    _setEndDate(date);
+    if (preset === "custom") {
+      try {
+        localStorage.setItem(CUSTOM_END_STORAGE_KEY, date);
+      } catch {}
+    }
   };
 
   return (
     <TimestampContext.Provider
       value={{
-        startDate,
-        endDate,
+        startDate: startDateState,
+        endDate: endDateState,
         preset,
         setStartDate,
         setEndDate,

@@ -60,6 +60,25 @@ export function TimestampSelect() {
     setPreset(value);
     if (value !== "custom") {
       setDropdownOpen(false);
+    } else {
+      // Initialize custom UI from persisted values if available
+      try {
+        const savedStart = localStorage.getItem("marge-custom-start");
+        const savedEnd = localStorage.getItem("marge-custom-end");
+        if (savedStart) {
+          const startDateObj = new Date(savedStart);
+          setCustomRange((prev) => ({ ...prev, from: startDateObj } as any));
+          const startTime = savedStart.slice(11, 16);
+          if (startTime) setCustomStartTime(startTime);
+        }
+        if (savedEnd) {
+          const endDateObj = new Date(savedEnd);
+          setCustomRange((prev) => ({ ...(prev as any), to: endDateObj } as any));
+          const endTime = savedEnd.slice(11, 16);
+          if (endTime) setCustomEndTime(endTime);
+        }
+      } catch {}
+      setDropdownOpen(true);
     }
   };
 
